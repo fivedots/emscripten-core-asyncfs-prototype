@@ -653,7 +653,7 @@ var ASYNCIFY_DEBUG = 0;
 // Note that *all* syscalls are handled this way. That means that simple
 // printf will also go through that route, so your AsyncFSImpl must handle
 // printing to stdout etc. file descriptors if you want printf etc. to work.
-var ASYNCFS = 0;
+var ASYNCFS = 1;
 
 // Runtime elements that are exported on Module by default. We used to export
 // quite a lot here, but have removed them all, so this option is redundant

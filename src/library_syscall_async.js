@@ -29,6 +29,20 @@ var SyscallsLibraryAsync = {
     },
   },
 
+  __syscall3: function(which, varargs) { // read
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var stream = SYSCALLS.getStreamFromFD(), buf = SYSCALLS.get(), count = SYSCALLS.get();
+      AsyncFSImpl.read(stream, {{{ heapAndOffset('HEAP8', 'buf') }}}, count, wakeUp);
+    });
+  },
+
+  __syscall4: function(which, varargs) { // write
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var fd = SYSCALLS.get(), buf = SYSCALLS.get(), count = SYSCALLS.get();
+      AsyncFSImpl.write(fd, {{{ heapAndOffset('HEAP8', 'buf') }}}, count, wakeUp);
+    });
+  },
+
   __syscall5: function(which, varargs) { // open
     return AsyncFS.handle(varargs, function(wakeUp) {
       var pathname = SYSCALLS.getStr(), flags = SYSCALLS.get(), mode = SYSCALLS.get(); // optional TODO
@@ -43,10 +57,36 @@ var SyscallsLibraryAsync = {
     });
   },
 
+  __syscall15: function(which, varargs) { // chmod
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var path = SYSCALLS.getStr(), mode = SYSCALLS.get();
+      AsyncFSImpl.chmod(path, mode, wakeUp);
+    });
+  },
+
+  __syscall20__deps: ['$PROCINFO'],
+  __syscall20: function(which, varargs) { // getpid
+    return PROCINFO.pid;
+  },
+
   __syscall33: function(which, varargs) { // access
     return AsyncFS.handle(varargs, function(wakeUp) {
       var path = SYSCALLS.getStr(), amode = SYSCALLS.get();
       AsyncFSImpl.access(path, amode, wakeUp);
+    });
+  },
+
+ __syscall39: function(which, varargs) { // mkdir
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var path = SYSCALLS.getStr(), mode = SYSCALLS.get();
+      AsyncFSImpl.mkdir(path, mode, wakeUp);
+    });
+  },
+
+  __syscall40: function(which, varargs) { // rmdir
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var path = SYSCALLS.getStr();
+      AsyncFSImpl.rmdir(path, wakeUp);
     });
   },
 
@@ -57,10 +97,24 @@ var SyscallsLibraryAsync = {
     });
   },
 
+  __syscall85: function(which, varargs) { // readlink
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var path = SYSCALLS.getStr(), buf = SYSCALLS.get(), bufsize = SYSCALLS.get();
+      AsyncFSImpl.readlink(path, buf, bufsize, wakeUp);
+    });
+  },
+
   __syscall91: function(which, varargs) { // munmap
     return AsyncFS.handle(varargs, function(wakeUp) {
       var addr = SYSCALLS.get(), len = SYSCALLS.get();
       AsyncFSImpl.munmap(addr, len, wakeUp);
+    });
+  },
+
+  __syscall94: function(which, varargs) { // fchmod
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var fd = SYSCALLS.get(), mode = SYSCALLS.get();
+      AsyncFSImpl.fchmod(fd, mode, wakeUp);
     });
   },
 
@@ -74,13 +128,33 @@ var SyscallsLibraryAsync = {
   __syscall183: function(which, varargs) { // getcwd
     return AsyncFS.handle(varargs, function(wakeUp) {
       var buf = SYSCALLS.get(), size = SYSCALLS.get();
-      AsyncFSImpl.getcwd(buf, size, wakeUp);
+      if (size === 0) return -{{{ cDefine('EINVAL') }}};
+      //TODO consider removing fake result here
+      var cwd = '/async-syscall-fake-dir';
+      var cwdLengthInBytes = lengthBytesUTF8(cwd);
+      if (size < cwdLengthInBytes + 1) return -{{{ cDefine('ERANGE') }}};
+      stringToUTF8(cwd, buf, size);
+      return buf;
+    });
+  },
+
+  __syscall191: function(which, varargs) { // ugetrlimit
+    return AsyncFS.handle(varargs, function(wakeUp) {
+#if SYSCALL_DEBUG
+      err('warning: untested syscall');
+#endif
+      var resource = SYSCALLS.get(), rlim = SYSCALLS.get();
+      {{{ makeSetValue('rlim', C_STRUCTS.rlimit.rlim_cur, '-1', 'i32') }}};  // RLIM_INFINITY
+      {{{ makeSetValue('rlim', C_STRUCTS.rlimit.rlim_cur + 4, '-1', 'i32') }}};  // RLIM_INFINITY
+      {{{ makeSetValue('rlim', C_STRUCTS.rlimit.rlim_max, '-1', 'i32') }}};  // RLIM_INFINITY
+      {{{ makeSetValue('rlim', C_STRUCTS.rlimit.rlim_max + 4, '-1', 'i32') }}};  // RLIM_INFINITY
+      return 0; // just report no limits
     });
   },
 
   __syscall192: function(which, varargs) { // mmap2
     return AsyncFS.handle(varargs, function(wakeUp) {
-      var addr = SYSCALLS.get(), len = SYSCALLS.get(), prot = SYSCALLS.get(), flags = SYSCALLS.get(), fd = SYSCALLS.get(), off = SYSCALLS.get()
+      var addr = SYSCALLS.get(), len = SYSCALLS.get(), prot = SYSCALLS.get(), flags = SYSCALLS.get(), fd = SYSCALLS.get(), off = SYSCALLS.get();
       AsyncFSImpl.mmap(addr, len, prot, flags, fd, off, wakeUp);
     });
   },
@@ -92,17 +166,50 @@ var SyscallsLibraryAsync = {
     });
   },
 
-  __syscall195: function(which, varargs) { // stat
+  //TODO: consider adding an async equivalent to SYSCALL.doStat
+  __syscall195: function(which, varargs) { // stat64
     return AsyncFS.handle(varargs, function(wakeUp) {
       var path = SYSCALLS.getStr(), buf = SYSCALLS.get();
-      AsyncFSImpl.stat(path, buf, wakeUp);
+      callback = function(arg) {
+        console.log('!!! syscall195: ' + arg);
+        wakeUp(arg)
+      }
+      AsyncFSImpl.stat(path, buf, callback)
     });
   },
+
+
+  // Since NativeIO doesn't have links, lstat behaves the same as stat
+  __syscall196: '__syscall195', // lstat64
 
   __syscall197: function(which, varargs) { // fstat
     return AsyncFS.handle(varargs, function(wakeUp) {
       var fd = SYSCALLS.get(), buf = SYSCALLS.get();
       AsyncFSImpl.fstat(fd, buf, wakeUp);
+    });
+  },
+
+  __syscall199__sig: 'iii',
+  __syscall199: '__syscall202',     // getuid32
+  __syscall200__sig: 'iii',
+  __syscall200: '__syscall202',     // getgid32
+  __syscall201__sig: 'iii',
+  __syscall201: '__syscall202',     // geteuid32
+  __syscall202: function(which, varargs) { // getgid32
+    return 0;
+  },
+
+  __syscall207: function(which, varargs) { // fchown32
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var fd = SYSCALLS.get(), owner = SYSCALLS.get(), group = SYSCALLS.get();
+      AsyncFSImpl.fchown(fd, owner, group, wakeUp);
+    });
+  },
+
+  __syscall212: function(which, varargs) { // chown32
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      var path = SYSCALLS.getStr(), owner = SYSCALLS.get(), group = SYSCALLS.get();
+      AsyncFSImpl.chown(path, owner, group, wakeUp);
     });
   },
 
@@ -119,7 +226,7 @@ var SyscallsLibraryAsync = {
     return Asyncify.handleSleep(function(wakeUp) {
       AsyncFSImpl.writev(fd, AsyncFS.getIovs(iov, iovcnt), function(result) {
         {{{ makeSetValue('pnum', 0, 'result', 'i32') }}}
-        wakeUp();
+        wakeUp(0);
       });
     });
   },
@@ -128,7 +235,7 @@ var SyscallsLibraryAsync = {
     return Asyncify.handleSleep(function(wakeUp) {
       AsyncFSImpl.readv(fd, AsyncFS.getIovs(iov, iovcnt), function(result) {
         {{{ makeSetValue('pnum', 0, 'result', 'i32') }}}
-        wakeUp();
+        wakeUp(0);
       });
     });
   },
@@ -137,7 +244,7 @@ var SyscallsLibraryAsync = {
     return Asyncify.handleSleep(function(wakeUp) {
       AsyncFSImpl.llseek(fd, offset_high, offset_low, whence, function(result) {
         {{{ makeSetValue('newOffset', 0, 'result', 'i32') }}}
-        wakeUp();
+        wakeUp(0);
       });
     });
   },
@@ -145,6 +252,30 @@ var SyscallsLibraryAsync = {
   fd_close: function(fd) {
     return Asyncify.handleSleep(function(wakeUp) {
       AsyncFSImpl.close(fd, wakeUp);
+    });
+  },
+
+  fd_fdstat_get: function(fd, pbuf) {
+    return Asyncify.handleSleep(function(wakeUp) {
+      var stream = SYSCALLS.getStreamFromFD(fd);
+      // All character devices are terminals (other things a Linux system would
+      // assume is a character device, like the mouse, we have special APIs for).
+      var type = stream.tty ? {{{ cDefine('__WASI_FILETYPE_CHARACTER_DEVICE') }}} :
+                 FS.isDir(stream.mode) ? {{{ cDefine('__WASI_FILETYPE_DIRECTORY') }}} :
+                 FS.isLink(stream.mode) ? {{{ cDefine('__WASI_FILETYPE_SYMBOLIC_LINK') }}} :
+                 {{{ cDefine('__WASI_FILETYPE_REGULAR_FILE') }}};
+      {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_filetype, 'type', 'i8') }}};
+      // TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_flags, '?', 'i16') }}};
+      // TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_rights_base, '?', 'i64') }}};
+      // TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_rights_inheriting, '?', 'i64') }}};
+      wakeUp(0);
+    });
+  },
+
+  fd_sync: function(fd) {
+    return Asyncify.handleSleep(function(wakeUp) {
+      //TODO: does fd_sync make sense for ASYNCFS?
+      wakeUp(0);
     });
   },
 
