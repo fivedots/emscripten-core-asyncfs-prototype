@@ -11,10 +11,10 @@ var SyscallsLibraryAsync = {
 
   $AsyncFS__deps: ['$SYSCALLS', '$Asyncify', '$AsyncFSImpl'],
   $AsyncFS: {
-    handle: function(varargs, handle) {
+    handle: function(varargs, fn) {
       return Asyncify.handleSleep(function(wakeUp) {
         SYSCALLS.varargs = varargs;
-        handle(wakeUp);
+        fn(wakeUp);
       });
     },
 
@@ -46,6 +46,14 @@ var SyscallsLibraryAsync = {
   __syscall5: function(which, varargs) { // open
     return AsyncFS.handle(varargs, function(wakeUp) {
       var pathname = SYSCALLS.getStr(), flags = SYSCALLS.get(), mode = SYSCALLS.get(); // optional TODO
+      debugger;
+     // setTimeout(function() {
+     //   wakeUp(1337)
+     // }, 1);
+     // Promise.resolve(1337).then(fh => {
+     //   wakeUp(fh);
+     // });
+      //wakeUp(1337);
       AsyncFSImpl.open(pathname, flags, mode, wakeUp);
     });
   },
@@ -66,7 +74,9 @@ var SyscallsLibraryAsync = {
 
   __syscall20__deps: ['$PROCINFO'],
   __syscall20: function(which, varargs) { // getpid
-    return PROCINFO.pid;
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      wakeUp(PROCINFO.pid);
+    });
   },
 
   __syscall33: function(which, varargs) { // access
@@ -127,19 +137,28 @@ var SyscallsLibraryAsync = {
 
   __syscall183: function(which, varargs) { // getcwd
     return AsyncFS.handle(varargs, function(wakeUp) {
+      console.log('syscall183 getcwd')
       var buf = SYSCALLS.get(), size = SYSCALLS.get();
-      if (size === 0) return -{{{ cDefine('EINVAL') }}};
+      if (size === 0) {
+        wakeUp(-{{{ cDefine('EINVAL') }}});
+        return
+      }
       //TODO consider removing fake result here
       var cwd = '/async-syscall-fake-dir';
       var cwdLengthInBytes = lengthBytesUTF8(cwd);
-      if (size < cwdLengthInBytes + 1) return -{{{ cDefine('ERANGE') }}};
+      if (size < cwdLengthInBytes + 1) {
+        wakeUp(-{{{ cDefine('ERANGE') }}});
+        return
+      }
+      //debugger;
       stringToUTF8(cwd, buf, size);
-      return buf;
+      wakeUp(0);
     });
   },
 
   __syscall191: function(which, varargs) { // ugetrlimit
     return AsyncFS.handle(varargs, function(wakeUp) {
+      console.log('syscall191 ugetrlimit')
 #if SYSCALL_DEBUG
       err('warning: untested syscall');
 #endif
@@ -148,14 +167,14 @@ var SyscallsLibraryAsync = {
       {{{ makeSetValue('rlim', C_STRUCTS.rlimit.rlim_cur + 4, '-1', 'i32') }}};  // RLIM_INFINITY
       {{{ makeSetValue('rlim', C_STRUCTS.rlimit.rlim_max, '-1', 'i32') }}};  // RLIM_INFINITY
       {{{ makeSetValue('rlim', C_STRUCTS.rlimit.rlim_max + 4, '-1', 'i32') }}};  // RLIM_INFINITY
-      return 0; // just report no limits
+      wakeUp(0); // just report no limits
     });
   },
 
   __syscall192: function(which, varargs) { // mmap2
     return AsyncFS.handle(varargs, function(wakeUp) {
       var addr = SYSCALLS.get(), len = SYSCALLS.get(), prot = SYSCALLS.get(), flags = SYSCALLS.get(), fd = SYSCALLS.get(), off = SYSCALLS.get();
-      AsyncFSImpl.mmap(addr, len, prot, flags, fd, off, wakeUp);
+      AsyncFSImpl.mmap2(addr, len, prot, flags, fd, off, wakeUp);
     });
   },
 
@@ -196,7 +215,9 @@ var SyscallsLibraryAsync = {
   __syscall201__sig: 'iii',
   __syscall201: '__syscall202',     // geteuid32
   __syscall202: function(which, varargs) { // getgid32
-    return 0;
+    return AsyncFS.handle(varargs, function(wakeUp) {
+      wakeUp(0);
+    })
   },
 
   __syscall207: function(which, varargs) { // fchown32

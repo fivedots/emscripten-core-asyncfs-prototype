@@ -635,7 +635,7 @@ var ASYNCIFY_WHITELIST = [];
 var ASYNCIFY_LAZY_LOAD_CODE = 0;
 
 // Runtime debug logging from asyncify internals.
-var ASYNCIFY_DEBUG = 0;
+var ASYNCIFY_DEBUG = 1;
 
 // Replaces the normal filesystem implementation with an async JS API. This
 // requires Asyncify, and makes all the syscalls be Asyncify imports, which
