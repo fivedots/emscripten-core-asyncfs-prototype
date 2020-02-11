@@ -24,9 +24,26 @@ int main() {
     // work is done here, just timeouts (which are enough to show this
     // works).
     AsyncFSImpl.open = function(pathname, flags, mode, wakeUp) {
+      // Open should return a file descriptor. This code does not work, as C++
+      // receives a 0 instead of a 1337
       setTimeout(function() {
-        wakeUp(1);
+        var fd = 1337;
+        console.log('AsyncFSImpl.open fd: ' + fd);
+        wakeUp(fd);
       }, 0);
+
+      // Using a promise instead of a timeout results in the same error
+      //
+      //Promise.resolve(1337).then(fd => {
+      //  console.log('AsyncFSImpl.open fd: ' + fd);
+      //  wakeUp(fd);
+      //});
+
+      // Removing the timeout resolves the issue:
+      //
+      //var fd = 1337;
+      //console.log('AsyncFSImpl.open fd: ' + fd);
+      //wakeUp(fd);
     };
     AsyncFSImpl.ioctl = function(fd, op, wakeUp) {
       setTimeout(function() {
@@ -62,6 +79,10 @@ int main() {
   log("opening");
   FILE* f = fopen("does_not_matter", "r");
   if (!f) error("open error");
+  int fd = fileno(f);
+  EM_ASM({ console.log("log: open fileno", $0) }, fd);
+  if (fd != 1337) error("open returned unexpected fileno");
+
 
   log("reading");
   const int N = 5;
