@@ -635,7 +635,7 @@ var ASYNCIFY_WHITELIST = [];
 var ASYNCIFY_LAZY_LOAD_CODE = 0;
 
 // Runtime debug logging from asyncify internals.
-var ASYNCIFY_DEBUG = 1;
+var ASYNCIFY_DEBUG = 0;
 
 // Replaces the normal filesystem implementation with an async JS API. This
 // requires Asyncify, and makes all the syscalls be Asyncify imports, which
@@ -653,7 +653,7 @@ var ASYNCIFY_DEBUG = 1;
 // Note that *all* syscalls are handled this way. That means that simple
 // printf will also go through that route, so your AsyncFSImpl must handle
 // printing to stdout etc. file descriptors if you want printf etc. to work.
-var ASYNCFS = 1;
+var ASYNCFS = 0;
 
 // Runtime elements that are exported on Module by default. We used to export
 // quite a lot here, but have removed them all, so this option is redundant

@@ -31,8 +31,8 @@ var SyscallsLibraryAsync = {
 
   __syscall3: function(which, varargs) { // read
     return AsyncFS.handle(varargs, function(wakeUp) {
-      var stream = SYSCALLS.getStreamFromFD(), buf = SYSCALLS.get(), count = SYSCALLS.get();
-      AsyncFSImpl.read(stream, {{{ heapAndOffset('HEAP8', 'buf') }}}, count, wakeUp);
+      var fd = SYSCALLS.get(), buf = SYSCALLS.get(), count = SYSCALLS.get();
+      AsyncFSImpl.read(fd, {{{ heapAndOffset('HEAP8', 'buf') }}}, count, wakeUp);
     });
   },
 
@@ -46,22 +46,14 @@ var SyscallsLibraryAsync = {
   __syscall5: function(which, varargs) { // open
     return AsyncFS.handle(varargs, function(wakeUp) {
       var pathname = SYSCALLS.getStr(), flags = SYSCALLS.get(), mode = SYSCALLS.get(); // optional TODO
-      debugger;
-     // setTimeout(function() {
-     //   wakeUp(1337)
-     // }, 1);
-     // Promise.resolve(1337).then(fh => {
-     //   wakeUp(fh);
-     // });
-      //wakeUp(1337);
       AsyncFSImpl.open(pathname, flags, mode, wakeUp);
     });
   },
 
   __syscall10: function(which, varargs) { // unlink
     return AsyncFS.handle(varargs, function(wakeUp) {
-      var path = SYSCALLS.getStr();
-      AsyncFSImpl.unlink(path, wakeUp);
+      var pathname = SYSCALLS.getStr();
+      AsyncFSImpl.unlink(pathname, wakeUp);
     });
   },
 
@@ -137,7 +129,6 @@ var SyscallsLibraryAsync = {
 
   __syscall183: function(which, varargs) { // getcwd
     return AsyncFS.handle(varargs, function(wakeUp) {
-      console.log('syscall183 getcwd')
       var buf = SYSCALLS.get(), size = SYSCALLS.get();
       if (size === 0) {
         wakeUp(-{{{ cDefine('EINVAL') }}});
@@ -150,7 +141,6 @@ var SyscallsLibraryAsync = {
         wakeUp(-{{{ cDefine('ERANGE') }}});
         return
       }
-      //debugger;
       stringToUTF8(cwd, buf, size);
       wakeUp(0);
     });
@@ -158,7 +148,6 @@ var SyscallsLibraryAsync = {
 
   __syscall191: function(which, varargs) { // ugetrlimit
     return AsyncFS.handle(varargs, function(wakeUp) {
-      console.log('syscall191 ugetrlimit')
 #if SYSCALL_DEBUG
       err('warning: untested syscall');
 #endif
@@ -189,11 +178,7 @@ var SyscallsLibraryAsync = {
   __syscall195: function(which, varargs) { // stat64
     return AsyncFS.handle(varargs, function(wakeUp) {
       var path = SYSCALLS.getStr(), buf = SYSCALLS.get();
-      callback = function(arg) {
-        console.log('!!! syscall195: ' + arg);
-        wakeUp(arg)
-      }
-      AsyncFSImpl.stat(path, buf, callback)
+      AsyncFSImpl.stat(path, buf, wakeUp)
     });
   },
 
@@ -278,25 +263,25 @@ var SyscallsLibraryAsync = {
 
   fd_fdstat_get: function(fd, pbuf) {
     return Asyncify.handleSleep(function(wakeUp) {
-      var stream = SYSCALLS.getStreamFromFD(fd);
-      // All character devices are terminals (other things a Linux system would
-      // assume is a character device, like the mouse, we have special APIs for).
-      var type = stream.tty ? {{{ cDefine('__WASI_FILETYPE_CHARACTER_DEVICE') }}} :
-                 FS.isDir(stream.mode) ? {{{ cDefine('__WASI_FILETYPE_DIRECTORY') }}} :
-                 FS.isLink(stream.mode) ? {{{ cDefine('__WASI_FILETYPE_SYMBOLIC_LINK') }}} :
-                 {{{ cDefine('__WASI_FILETYPE_REGULAR_FILE') }}};
-      {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_filetype, 'type', 'i8') }}};
-      // TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_flags, '?', 'i16') }}};
-      // TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_rights_base, '?', 'i64') }}};
-      // TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_rights_inheriting, '?', 'i64') }}};
-      wakeUp(0);
+      console.log('WARNING called unimplemented fd_fdstat_get syscalls.');
+      //var stream = SYSCALLS.getStreamFromFD(fd);
+      //// All character devices are terminals (other things a Linux system would
+      //// assume is a character device, like the mouse, we have special APIs for).
+      //var type = stream.tty ? {{{ cDefine('__WASI_FILETYPE_CHARACTER_DEVICE') }}} :
+      //           FS.isDir(stream.mode) ? {{{ cDefine('__WASI_FILETYPE_DIRECTORY') }}} :
+      //           FS.isLink(stream.mode) ? {{{ cDefine('__WASI_FILETYPE_SYMBOLIC_LINK') }}} :
+      //           {{{ cDefine('__WASI_FILETYPE_REGULAR_FILE') }}};
+      //{{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_filetype, 'type', 'i8') }}};
+      //// TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_flags, '?', 'i16') }}};
+      //// TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_rights_base, '?', 'i64') }}};
+      //// TODO {{{ makeSetValue('pbuf', C_STRUCTS.__wasi_fdstat_t.fs_rights_inheriting, '?', 'i64') }}};
+      wakeUp(-1);
     });
   },
 
   fd_sync: function(fd) {
     return Asyncify.handleSleep(function(wakeUp) {
-      //TODO: does fd_sync make sense for ASYNCFS?
-      wakeUp(0);
+      AsyncFSImpl.fsync(fd, wakeUp);
     });
   },
 
