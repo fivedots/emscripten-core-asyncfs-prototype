@@ -303,7 +303,7 @@ var SyscallsLibraryAsync = {
     console.log('fd_seek')
     return Asyncify.handleSleep(function(wakeUp) {
       AsyncFSImpl.llseek(fd, offset_high, offset_low, whence, function(result) {
-        {{{ makeSetValue('newOffset', 0, 'result', 'i32') }}}
+        {{{ makeSetValue('newOffset', 0, 'result', 'i64') }}}
         wakeUp(0);
       });
     });
